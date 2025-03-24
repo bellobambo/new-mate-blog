@@ -6,8 +6,8 @@
 
     <nav class="nav-links">
         <a href="#" class="nav-link active">Home</a>
-        <a href="#" class="nav-link">About</a>
-        <a href="#" class="nav-link highlight">Post a Blog</a>
+        <a href="about-us" class="nav-link">About</a>
+        <a href="post-new-blog" class="nav-link highlight">Post a Blog</a>
     </nav>
 
 
