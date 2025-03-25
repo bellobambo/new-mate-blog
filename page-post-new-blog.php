@@ -1,4 +1,89 @@
-<?php get_header(); ?>
+<?php
+// Handle form submission FIRST, before any output
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'process_new_post') {
+    // Verify nonce and user capabilities
+    if (!isset($_POST['post_nonce_field'])) {
+        wp_redirect(add_query_arg('error', 'nonce_failed', wp_get_referer()));
+        exit;
+    }
+
+    if (!wp_verify_nonce($_POST['post_nonce_field'], 'new_post_nonce')) {
+        wp_redirect(add_query_arg('error', 'nonce_failed', wp_get_referer()));
+        exit;
+    }
+
+    if (!is_user_logged_in() || !current_user_can('edit_posts')) {
+        wp_redirect(add_query_arg('error', 'no_permission', wp_get_referer()));
+        exit;
+    }
+
+    // Validate input
+    if (empty($_POST['post_title'])) {
+        wp_redirect(add_query_arg('error', 'no_title', wp_get_referer()));
+        exit;
+    }
+
+    if (empty($_POST['post_content'])) {
+        wp_redirect(add_query_arg('error', 'no_content', wp_get_referer()));
+        exit;
+    }
+
+    // Sanitize input
+    $post_title = sanitize_text_field($_POST['post_title']);
+    $post_content = wp_kses_post($_POST['post_content']);
+    $author_id = get_current_user_id();
+
+    // Create post (set to pending for admin approval)
+    $new_post = array(
+        'post_title' => $post_title,
+        'post_content' => $post_content,
+        'post_status' => 'pending',
+        'post_author' => $author_id,
+        'post_type' => 'post'
+    );
+
+    $post_id = wp_insert_post($new_post);
+
+    if (is_wp_error($post_id)) {
+        wp_redirect(add_query_arg('error', 'post_failed', wp_get_referer()));
+        exit;
+    }
+
+    // Handle featured image upload
+    if (!empty($_FILES['featured_image']['name'])) {
+        require_once(ABSPATH . 'wp-admin/includes/image.php');
+        require_once(ABSPATH . 'wp-admin/includes/file.php');
+        require_once(ABSPATH . 'wp-admin/includes/media.php');
+
+        $attachment_id = media_handle_upload('featured_image', $post_id);
+
+        if (is_wp_error($attachment_id)) {
+            wp_delete_post($post_id, true);
+            wp_redirect(add_query_arg('error', 'upload_failed', wp_get_referer()));
+            exit;
+        }
+
+        set_post_thumbnail($post_id, $attachment_id);
+    }
+
+    // Send notification to admin
+    $admin_email = get_option('admin_email');
+    $post_link = admin_url('post.php?post=' . $post_id . '&action=edit');
+    $subject = 'New Post Submission Requires Approval';
+    $message = "A new post has been submitted for approval:\n\n";
+    $message .= "Title: " . $post_title . "\n";
+    $message .= "Author: " . get_the_author_meta('display_name', $author_id) . "\n\n";
+    $message .= "Review and approve: " . $post_link;
+
+    wp_mail($admin_email, $subject, $message);
+
+    wp_redirect(add_query_arg('success', '1', wp_get_referer()));
+    exit;
+}
+
+// Now output the page
+get_header();
+?>
 
 <div class="elegant-post-form">
     <div class="form-header">
@@ -7,22 +92,60 @@
     </div>
 
     <?php if (isset($_GET['success']) && $_GET['success'] == '1'): ?>
-        <div class="form-notice success">
-            <span class="notice-icon">✓</span>
-            Post published successfully!
-        </div>
+    <div class="form-notice success">
+        <span class="notice-icon">✓</span>
+        Post submitted successfully! It will be published after admin approval.
+    </div>
+    <?php elseif (isset($_GET['error'])): ?>
+    <div class="form-notice error">
+        <span class="notice-icon">!</span>
+        <?php
+            switch ($_GET['error']) {
+                case 'nonce_failed':
+                    echo 'Security verification failed. Please try again.';
+                    break;
+                case 'no_title':
+                    echo 'Please enter a post title.';
+                    break;
+                case 'no_content':
+                    echo 'Please enter post content.';
+                    break;
+                case 'upload_failed':
+                    echo 'Image upload failed. Please try again.';
+                    break;
+                case 'post_failed':
+                    echo 'Post creation failed. Please try again.';
+                    break;
+                case 'no_permission':
+                    echo 'You do not have permission to submit posts.';
+                    break;
+                default:
+                    echo 'An error occurred. Please try again.';
+            }
+            ?>
+    </div>
     <?php endif; ?>
 
+    <?php if (is_user_logged_in() && current_user_can('edit_posts')): ?>
     <form id="post-form" method="post" enctype="multipart/form-data">
         <div class="form-row title-row">
             <div class="title-label">Post Title</div>
-            <input type="text" name="post_title" class="title-input" required placeholder="Enter your post title">
+            <input type="text" name="post_title" class="title-input" required placeholder="Enter your post title"
+                value="<?php echo isset($_POST['post_title']) ? esc_attr($_POST['post_title']) : ''; ?>">
         </div>
 
         <div class="form-row content-row">
             <div class="content-label">Post Content</div>
-            <textarea name="post_content" class="content-input" required placeholder="Write your post content here..."
-                rows="8"></textarea>
+            <?php
+                $content = isset($_POST['post_content']) ? wp_kses_post($_POST['post_content']) : '';
+                wp_editor($content, 'post_content', array(
+                    'textarea_name' => 'post_content',
+                    'media_buttons' => false,
+                    'textarea_rows' => 8,
+                    'teeny' => true,
+                    'quicktags' => false
+                ));
+                ?>
         </div>
 
         <div class="form-row image-upload">
@@ -30,280 +153,342 @@
                 <span class="upload-icon">+</span>
                 <span class="upload-text">Add Featured Image</span>
                 <input type="file" name="featured_image" accept="image/*">
-                <div class="preview-container"></div>
+                <div class="preview-container">
+                    <?php if (isset($_GET['preview_image'])): ?>
+                    <img src="<?php echo esc_url($_GET['preview_image']); ?>">
+                    <?php endif; ?>
+                </div>
             </label>
         </div>
 
         <div class="form-actions">
             <button type="submit" name="submit_post" class="submit-btn">
-                <span class="btn-text">Publish</span>
+                <span class="btn-text">Submit for Review</span>
                 <span class="btn-icon">→</span>
             </button>
             <?php wp_nonce_field('new_post_nonce', 'post_nonce_field'); ?>
             <input type="hidden" name="action" value="process_new_post">
         </div>
     </form>
+    <?php else: ?>
+    <div class="form-notice info">
+        <span class="notice-icon">i</span>
+        <?php if (!is_user_logged_in()): ?>
+        You need to <a href="<?php echo wp_login_url(get_permalink()); ?>">log in</a> to submit posts.
+        <?php else: ?>
+        Your account doesn't have permission to submit posts.
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
 </div>
 
 <style>
+.elegant-post-form {
+    max-width: 650px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.form-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.form-header h2 {
+    color: #2c3e50;
+    font-size: 1.8rem;
+    margin: 0 0 0.5rem;
+    font-weight: 600;
+}
+
+.subtitle {
+    color: #7f8c8d;
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+.form-notice {
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    font-size: 0.95rem;
+}
+
+.success {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.error {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.info {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+.notice-icon {
+    margin-right: 0.7rem;
+    font-weight: bold;
+}
+
+.form-row {
+    margin-bottom: 1.5rem;
+}
+
+.title-row {
+    margin-bottom: 1.5rem;
+}
+
+.title-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.title-input {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    font-size: 1rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    background-color: #f8f9fa;
+}
+
+.title-input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+    background-color: white;
+}
+
+.content-row {
+    margin-bottom: 1.5rem;
+}
+
+.content-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.image-upload {
+    position: relative;
+}
+
+.upload-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    border: 2px dashed #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    min-height: 150px;
+}
+
+.upload-label:hover {
+    border-color: #3498db;
+    background: #f8f9fa;
+}
+
+.upload-icon {
+    font-size: 1.5rem;
+    color: #3498db;
+    margin-bottom: 0.5rem;
+}
+
+.upload-text {
+    color: #7f8c8d;
+    font-size: 0.95rem;
+}
+
+.upload-label input {
+    display: none;
+}
+
+.preview-container {
+    position: relative;
+    margin-top: 1rem;
+    max-width: 100%;
+    text-align: center;
+}
+
+.preview-container img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 6px;
+    object-fit: contain;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.remove-image {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 28px;
+    height: 28px;
+    background: #ff4444;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.remove-image:hover {
+    background: #cc0000;
+    transform: scale(1.1);
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 2rem;
+}
+
+.submit-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.8rem 1.8rem;
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 5px rgba(52, 152, 219, 0.2);
+}
+
+.submit-btn:hover {
+    background: #2980b9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+}
+
+.btn-icon {
+    margin-left: 0.5rem;
+    transition: transform 0.2s;
+}
+
+.submit-btn:hover .btn-icon {
+    transform: translateX(3px);
+}
+
+.loading-text {
+    color: #7f8c8d;
+    font-style: italic;
+    margin-top: 0.5rem;
+}
+
+@media (max-width: 768px) {
     .elegant-post-form {
-        max-width: 650px;
-        margin: 2rem auto;
-        padding: 2rem;
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-    }
-
-    .form-header {
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-
-    .form-header h2 {
-        color: #2c3e50;
-        font-size: 1.8rem;
-        margin: 0 0 0.5rem;
-        font-weight: 600;
-    }
-
-    .subtitle {
-        color: #7f8c8d;
-        font-size: 0.95rem;
-        margin: 0;
-    }
-
-    .form-notice {
-        padding: 0.8rem 1rem;
-        border-radius: 8px;
-        margin-bottom: 1.5rem;
-        display: flex;
-        align-items: center;
-        font-size: 0.95rem;
-    }
-
-    .success {
-        background: #e8f5e9;
-        color: #2e7d32;
-    }
-
-    .notice-icon {
-        margin-right: 0.7rem;
-        font-weight: bold;
-    }
-
-    .form-row {
-        margin-bottom: 1.5rem;
-    }
-
-
-    .title-row {
-        margin-bottom: 1.5rem;
-    }
-
-    .title-label {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #2c3e50;
-        margin-bottom: 0.5rem;
-        display: block;
-    }
-
-    .title-input {
-        width: 100%;
-        padding: 0.8rem 1rem;
-        font-size: 1rem;
-        border: 1px solid #e0e0e0;
-        border-radius: 6px;
-        transition: all 0.2s ease;
-        background-color: #f8f9fa;
-    }
-
-
-    .content-row {
-        margin-bottom: 1.5rem;
-    }
-
-    .content-label {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #2c3e50;
-        margin-bottom: 0.5rem;
-        display: block;
-    }
-
-    .content-input {
-        width: 100%;
-        padding: 0.8rem 1rem;
-        font-size: 1rem;
-        border: 1px solid #e0e0e0;
-        border-radius: 6px;
-        transition: all 0.2s ease;
-        background-color: #f8f9fa;
-        min-height: 200px;
-        resize: vertical;
-        font-family: inherit;
-    }
-
-
-    .title-input:focus,
-    .content-input:focus {
-        outline: none;
-        border-color: #3498db;
-        box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
-        background-color: white;
-    }
-
-    .title-input::placeholder,
-    .content-input::placeholder {
-        color: #95a5a6;
-        opacity: 1;
-    }
-
-
-    .image-upload {
-        position: relative;
-    }
-
-    .upload-label {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
         padding: 1.5rem;
-        border: 2px dashed #e0e0e0;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s;
-        text-align: center;
-    }
-
-    .upload-label:hover {
-        border-color: #bdc3c7;
-        background: #f8f9fa;
-    }
-
-    .upload-icon {
-        font-size: 1.5rem;
-        color: #3498db;
-        margin-bottom: 0.5rem;
-    }
-
-    .upload-text {
-        color: #7f8c8d;
-        font-size: 0.95rem;
-    }
-
-    .upload-label input {
-        display: none;
-    }
-
-    .preview-container {
-        margin-top: 1rem;
-        max-width: 100%;
-        display: none;
+        margin: 1rem;
     }
 
     .preview-container img {
-        max-width: 100%;
-        max-height: 200px;
-        border-radius: 6px;
-    }
-
-
-    .form-actions {
-        display: flex;
-        justify-content: flex-end;
+        max-height: 250px;
     }
 
     .submit-btn {
-        display: inline-flex;
-        align-items: center;
         padding: 0.7rem 1.5rem;
-        background: #3498db;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-size: 0.95rem;
-        cursor: pointer;
-        transition: all 0.2s;
+        width: 100%;
+        justify-content: center;
     }
-
-    .submit-btn:hover {
-        background: #2980b9;
-        transform: translateY(-1px);
-    }
-
-    .btn-icon {
-        margin-left: 0.5rem;
-        transition: transform 0.2s;
-    }
-
-    .submit-btn:hover .btn-icon {
-        transform: translateX(2px);
-    }
-
-    @media (max-width: 768px) {
-        .elegant-post-form {
-            padding: 1.5rem;
-            margin: 1rem;
-        }
-    }
+}
 </style>
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+
 <script>
-    jQuery(document).ready(function ($) {
+document.addEventListener('DOMContentLoaded', function() {
+    // Use the WordPress-safe $ alias
+    if (typeof jQuery !== 'undefined') {
+        jQuery(function($) {
+            $('input[name="featured_image"]').change(function() {
+                if (this.files && this.files[0]) {
+                    var reader = new FileReader();
+                    var preview = $(this).siblings('.preview-container');
+                    var uploadLabel = $(this).closest('.upload-label');
 
-        $('input[name="featured_image"]').change(function () {
-            if (this.files && this.files[0]) {
-                var reader = new FileReader();
-                var preview = $(this).siblings('.preview-container');
+                    // Show loading state
+                    preview.html('<div class="loading-text">Loading image preview...</div>');
 
-                reader.onload = function (e) {
-                    preview.html('<img src="' + e.target.result + '">').show();
+                    reader.onload = function(e) {
+                        preview.html(
+                            '<div class="image-preview-wrapper">' +
+                            '<img src="' + e.target.result +
+                            '" class="image-preview">' +
+                            '<button class="remove-image" title="Remove image" aria-label="Remove image">×</button>' +
+                            '</div>'
+                        );
+
+                        // Change upload area style when image is selected
+                        uploadLabel.css({
+                            'border-color': '#3498db',
+                            'background-color': '#f8f9fa'
+                        });
+                    };
+
+                    reader.onerror = function() {
+                        preview.html(
+                            '<div class="error">Error loading image preview</div>');
+                    };
+
+                    reader.readAsDataURL(this.files[0]);
                 }
+            });
 
-                reader.readAsDataURL(this.files[0]);
-            }
+            // Handle image removal
+            $(document).on('click', '.remove-image', function() {
+                var previewContainer = $(this).closest('.preview-container');
+                var uploadLabel = $(this).closest('.upload-label');
+
+                // Clear the file input
+                $('input[name="featured_image"]').val('');
+
+                // Reset upload area style
+                uploadLabel.css({
+                    'border-color': '#e0e0e0',
+                    'background-color': 'transparent'
+                });
+
+                // Remove preview
+                previewContainer.empty();
+            });
         });
-    });
+    } else {
+        console.error('jQuery is not loaded');
+    }
+});
 </script>
 
 <?php
 
-if (isset($_POST['action']) && $_POST['action'] == 'process_new_post' && isset($_POST['post_nonce_field']) && wp_verify_nonce($_POST['post_nonce_field'], 'new_post_nonce')) {
 
-    $post_title = sanitize_text_field($_POST['post_title']);
-    $post_content = wp_kses_post($_POST['post_content']);
-
-
-    $new_post = array(
-        'post_title' => $post_title,
-        'post_content' => $post_content,
-        'post_status' => 'publish',
-        'post_type' => 'post'
-    );
-
-
-    $post_id = wp_insert_post($new_post);
-
-
-    if (!empty($_FILES['featured_image']['name'])) {
-        require_once(ABSPATH . 'wp-admin/includes/image.php');
-        require_once(ABSPATH . 'wp-admin/includes/file.php');
-        require_once(ABSPATH . 'wp-admin/includes/media.php');
-
-        $attachment_id = media_handle_upload('featured_image', $post_id);
-
-        if (!is_wp_error($attachment_id)) {
-            set_post_thumbnail($post_id, $attachment_id);
-        }
-    }
-
-
-    wp_redirect(add_query_arg('success', '1', wp_get_referer()));
-    exit;
-}
+get_footer();
 ?>
-
-<?php get_footer(); ?>
