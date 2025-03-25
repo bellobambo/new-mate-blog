@@ -165,6 +165,13 @@ get_header();
             <button type="submit" name="submit_post" class="submit-btn">
                 <span class="btn-text">Submit for Review</span>
                 <span class="btn-icon">→</span>
+                <span class="loading-spinner" style="display: none;">
+                    <svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M10 3.5A6.5 6.5 0 0 0 3.5 10 .75.75 0 0 1 2 10a8 8 0 1 1 8 8 .75.75 0 0 1 0-1.5 6.5 6.5 0 1 0 0-13z"
+                            fill="#fff" />
+                    </svg>
+                </span>
             </button>
             <?php wp_nonce_field('new_post_nonce', 'post_nonce_field'); ?>
             <input type="hidden" name="action" value="process_new_post">
@@ -183,6 +190,39 @@ get_header();
 </div>
 
 <style>
+.loading-spinner {
+    margin-left: 8px;
+    animation: spin 1s linear infinite;
+}
+
+.loading-spinner svg {
+    display: block;
+    width: 20px;
+    height: 20px;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.submit-btn.is-loading .btn-text,
+.submit-btn.is-loading .btn-icon {
+    visibility: hidden;
+}
+
+.submit-btn.is-loading .loading-spinner {
+    display: inline-block !important;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
 .elegant-post-form {
     max-width: 650px;
     margin: 2rem auto;
@@ -429,6 +469,28 @@ document.addEventListener('DOMContentLoaded', function() {
     // Use the WordPress-safe $ alias
     if (typeof jQuery !== 'undefined') {
         jQuery(function($) {
+
+            // Form submission handler
+            $('#post-form').on('submit', function(e) {
+                var $form = $(this);
+                var $submitBtn = $form.find('.submit-btn');
+
+                // Prevent multiple submissions
+                if ($submitBtn.hasClass('is-loading')) {
+                    e.preventDefault();
+                    return false;
+                }
+
+                // Show loading state
+                $submitBtn.addClass('is-loading')
+                    .prop('disabled', true);
+
+                // Optional: Add slight delay so user sees the loading state
+                setTimeout(function() {
+                    $form.get(0).submit();
+                }, 150);
+            });
+
             $('input[name="featured_image"]').change(function() {
                 if (this.files && this.files[0]) {
                     var reader = new FileReader();
