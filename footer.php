@@ -16,9 +16,9 @@
             <div class="footer-column">
                 <h3 class="footer-title">Quick Links</h3>
                 <ul class="footer-links">
-                    <li><a href="#">Home</a></li>
-                    <li><a href="#">About Us</a></li>
-                    <li><a href="#">Blog Posts</a></li>
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/about-us">About Us</a></li>
+                    <li><a href="/post-new-blog">Blog Posts</a></li>
 
                 </ul>
             </div>
@@ -29,7 +29,7 @@
                 <h3 class="footer-title">Newsletter</h3>
                 <p class="newsletter-text">Subscribe to our newsletter for the latest updates.</p>
                 <form class="newsletter-form">
-                    <input type="email" placeholder="Your email address" required>
+                    <input style="border: 2px solid #777777;" type="email" placeholder="Your email address" required>
                     <button type="submit">Subscribe</button>
                 </form>
             </div>
@@ -42,8 +42,8 @@
 
 <style>
     .site-footer {
-        background-color: #2c3e50;
-        color: #ecf0f1;
+        background-color: #CCCCCC;
+        color: black;
         padding: 60px 0 0;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
@@ -59,6 +59,7 @@
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
         gap: 40px;
         margin-bottom: 40px;
+
     }
 
     .footer-column {
@@ -66,7 +67,7 @@
     }
 
     .footer-title {
-        color: #fff;
+        color: black;
         font-size: 1.2rem;
         margin-bottom: 20px;
         position: relative;
@@ -80,13 +81,13 @@
         bottom: 0;
         width: 50px;
         height: 2px;
-        background: #3498db;
+        background: #4caf50;
     }
 
     .footer-about {
         margin-bottom: 20px;
         line-height: 1.6;
-        color: #bdc3c7;
+        color: black;
     }
 
     .social-links {
@@ -102,12 +103,12 @@
         height: 36px;
         background: rgba(255, 255, 255, 0.1);
         border-radius: 50%;
-        color: #fff;
+        color: black;
         transition: all 0.3s ease;
     }
 
     .social-icon:hover {
-        background: #3498db;
+        background: #4caf50;
         transform: translateY(-3px);
     }
 
@@ -122,19 +123,19 @@
     }
 
     .footer-links a {
-        color: #bdc3c7;
+        color: black;
         text-decoration: none;
         transition: color 0.3s ease;
         display: inline-block;
     }
 
     .footer-links a:hover {
-        color: #3498db;
+        color: #4E0F47;
         transform: translateX(5px);
     }
 
     .newsletter-text {
-        color: #bdc3c7;
+        color: black;
         margin-bottom: 15px;
         line-height: 1.6;
     }
@@ -149,19 +150,19 @@
         flex: 1;
         min-width: 200px;
         padding: 12px 15px;
-        border: none;
+        border: black;
         border-radius: 4px;
         background: rgba(255, 255, 255, 0.1);
         color: #fff;
     }
 
     .newsletter-form input::placeholder {
-        color: #bdc3c7;
+        color: black;
     }
 
     .newsletter-form button {
         padding: 12px 25px;
-        background: #3498db;
+        background: #4caf50;
         color: white;
         border: none;
         border-radius: 4px;
@@ -169,9 +170,7 @@
         transition: background 0.3s ease;
     }
 
-    .newsletter-form button:hover {
-        background: #2980b9;
-    }
+
 
     .footer-bottom {
         border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -200,7 +199,7 @@
     }
 
     .legal-links a:hover {
-        color: #3498db;
+        color: #4caf50;
     }
 
     @media (max-width: 768px) {

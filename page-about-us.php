@@ -3,7 +3,7 @@
 <div class="about-page">
     <!-- Latest Post Section -->
     <div class="latest-post-section"
-        style="background-color:rgb(69, 88, 105); color: white; padding: 60px 20px; display: flex; align-items: center; justify-content: center; gap: 40px;">
+        style="background-color: #4E0F47; color: white; padding: 60px 20px; display: flex; align-items: center; justify-content: center; gap: 40px;">
         <h2 style="margin: 0; flex: 1; text-align: center;">Latest Post</h2>
 
         <?php
@@ -30,20 +30,20 @@
 
     <!-- Post Title and Content Section -->
     <?php if (!empty($latest_post)): ?>
-    <div class="post-content-section"
-        style="background-color: white; color: #333; padding: 60px 20px; text-align: center;">
-        <h3 style="margin-bottom: 20px; color: #1a237e;"><?php echo esc_html($post_title); ?></h3>
-        <p style="max-width: 800px; margin: 0 auto 20px; font-size: 1.1em; line-height: 1.6;">
-            <?php echo esc_html($post_content); ?>
-        </p>
-        <a href="<?php echo esc_url(get_permalink($post_id)); ?>"
-            style="text-decoration: none; color: #1a237e; font-weight: bold; font-size: 1.1em;">Read more →</a>
-    </div>
+        <div class="post-content-section"
+            style="background-color: white; color: #333; padding: 60px 20px; text-align: center;">
+            <h3 style="margin-bottom: 20px; color: #4caf50;"><?php echo esc_html($post_title); ?></h3>
+            <p style="max-width: 800px; margin: 0 auto 20px; font-size: 1.1em; line-height: 1.6;">
+                <?php echo esc_html($post_content); ?>
+            </p>
+            <a href="<?php echo esc_url(get_permalink($post_id)); ?>"
+                style="text-decoration: none; color: #4caf50; font-weight: bold; font-size: 1.1em;">Read more →</a>
+        </div>
     <?php endif; ?>
 
     <!-- About Website Section -->
     <div class="about-website-section"
-        style="background-color:rgb(69, 88, 105); color: white; padding: 60px 20px; text-align: center;">
+        style="background-color: #4E0F47 ; color: white; padding: 60px 20px; text-align: center;">
         <h2 style="margin-bottom: 30px;">About Our Website</h2>
         <div style="max-width: 800px; margin: 0 auto; font-size: 1.1em; line-height: 1.6;">
             <p>Welcome to our platform! This website is designed for users to share ideas, thoughts, and creative
@@ -59,17 +59,24 @@
 
     <!-- Create New Post Button -->
     <div class="create-post-section" style="background-color: white; padding: 60px 20px; text-align: center;">
-        <a href="<?php echo esc_url(home_url('/post-new-blog')); ?>"
-            style="display: inline-block; padding: 15px 30px; background-color:rgb(69, 88, 105); color: white; text-decoration: none; border-radius: 6px; font-size: 1.1em; font-weight: bold; transition: all 0.3s ease;">
+        <a class="about-link" href="<?php echo esc_url(home_url('/post-new-blog')); ?>"
+            style="display: inline-block; padding: 15px 30px; color: white; text-decoration: none; border-radius: 6px; font-size: 1.1em; font-weight: bold; transition: all 0.3s ease;">
             Create New Post
         </a>
     </div>
 </div>
 
+
+
 <style>
-.latest-post-section,
-.post-content-section,
-.about-website-section,
+    .about-page {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+    }
+
+    .about-link {
+        background: #4caf50;
+    }
 </style>
 
 <?php get_footer(); ?>

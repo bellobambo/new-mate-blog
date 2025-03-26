@@ -190,6 +190,11 @@ get_header();
 </div>
 
 <style>
+    .elegant-post-form {
+        background: #4E0F47;
+
+    }
+
     .loading-spinner {
         margin-left: 8px;
         animation: spin 1s linear infinite;
@@ -235,6 +240,8 @@ get_header();
     .form-header {
         text-align: center;
         margin-bottom: 2rem;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
     }
 
     .form-header h2 {
@@ -293,6 +300,8 @@ get_header();
         color: #2c3e50;
         margin-bottom: 0.5rem;
         display: block;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
     }
 
     .title-input {
@@ -303,6 +312,8 @@ get_header();
         border-radius: 6px;
         transition: all 0.2s ease;
         background-color: #f8f9fa;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
     }
 
     .title-input:focus {
@@ -322,6 +333,8 @@ get_header();
         color: #2c3e50;
         margin-bottom: 0.5rem;
         display: block;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
     }
 
     .image-upload {
@@ -356,6 +369,8 @@ get_header();
     .upload-text {
         color: #7f8c8d;
         font-size: 0.95rem;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
     }
 
     .upload-label input {
@@ -411,7 +426,7 @@ get_header();
         display: inline-flex;
         align-items: center;
         padding: 0.8rem 1.8rem;
-        background: #3498db;
+        background: #4caf50;
         color: white;
         border: none;
         border-radius: 8px;
@@ -423,7 +438,7 @@ get_header();
     }
 
     .submit-btn:hover {
-        background: #2980b9;
+        background: rgb(95, 227, 100);
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
     }
@@ -466,37 +481,62 @@ get_header();
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // Use the WordPress-safe $ alias
+
         if (typeof jQuery !== 'undefined') {
             jQuery(function ($) {
+
+                if (typeof tinymce !== 'undefined' && tinymce.get('post_content')) {
+                    var editor = tinymce.get('post_content');
+
+
+                    if (!editor.getContent()) {
+                        editor.setContent('<p class="placeholder-text">Enter description</p>');
+                        editor.dom.addClass(editor.getBody(), 'placeholder-active');
+                    }
+
+                    // Handle focus/blur events
+                    editor.on('focus', function () {
+                        if (editor.dom.hasClass(editor.getBody(), 'placeholder-active')) {
+                            editor.setContent('');
+                            editor.dom.removeClass(editor.getBody(), 'placeholder-active');
+                        }
+                    });
+
+                    editor.on('blur', function () {
+                        if (!editor.getContent()) {
+                            editor.setContent('<p class="placeholder-text">Enter description</p>');
+                            editor.dom.addClass(editor.getBody(), 'placeholder-active');
+                        }
+                    });
+                }
+
+
+                $('#post_content').attr('placeholder', 'Enter description');
 
 
                 $('#post-form').on('submit', function (e) {
                     var $form = $(this);
                     var $submitBtn = $form.find('.submit-btn');
 
-
                     if ($submitBtn.hasClass('is-loading')) {
                         e.preventDefault();
                         return false;
                     }
 
-
                     $submitBtn.addClass('is-loading')
                         .prop('disabled', true);
-
 
                     setTimeout(function () {
                         $form.get(0).submit();
                     }, 150);
                 });
 
+
                 $('input[name="featured_image"]').change(function () {
                     if (this.files && this.files[0]) {
                         var reader = new FileReader();
                         var preview = $(this).siblings('.preview-container');
                         var uploadLabel = $(this).closest('.upload-label');
-
 
                         preview.html('<div class="loading-text">Loading image preview...</div>');
 
@@ -508,7 +548,6 @@ get_header();
                                 '<button class="remove-image" title="Remove image" aria-label="Remove image">×</button>' +
                                 '</div>'
                             );
-
 
                             uploadLabel.css({
                                 'border-color': '#3498db',
@@ -525,20 +564,17 @@ get_header();
                     }
                 });
 
-
+                // Your existing image removal handler
                 $(document).on('click', '.remove-image', function () {
                     var previewContainer = $(this).closest('.preview-container');
                     var uploadLabel = $(this).closest('.upload-label');
 
-
                     $('input[name="featured_image"]').val('');
-
 
                     uploadLabel.css({
                         'border-color': '#e0e0e0',
                         'background-color': 'transparent'
                     });
-
 
                     previewContainer.empty();
                 });
@@ -548,6 +584,7 @@ get_header();
         }
     });
 </script>
+
 
 <?php
 

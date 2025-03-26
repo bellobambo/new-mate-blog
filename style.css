@@ -1,0 +1,13 @@
+:root {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+}
+
+body, button, input, textarea {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+}
+
+/* Example weights */
+h1, h2 { font-weight: 700; }
+p { font-weight: 400; }
